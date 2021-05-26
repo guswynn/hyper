@@ -492,6 +492,11 @@ where
         match self.strategy {
             WriteStrategy::Flatten => {
                 let head = self.headers_mut();
+                trace!(
+                    self.len = head.remaining(),
+                    buf.len = buf.remaining(),
+                    "buffer.flatten"
+                );
                 //perf: This is a little faster than <Vec as BufMut>>::put,
                 //but accomplishes the same result.
                 loop {
@@ -507,6 +512,11 @@ where
                 }
             }
             WriteStrategy::Queue => {
+                trace!(
+                    self.len = self.remaining(),
+                    buf.len = buf.remaining(),
+                    "buffer.queue"
+                );
                 self.queue.push(buf.into());
             }
         }
