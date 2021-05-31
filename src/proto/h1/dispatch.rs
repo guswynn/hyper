@@ -420,21 +420,20 @@ where
 
     #[inline]
     fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
-        #[cfg(feature = "server")]
-        {
-            struct Gus {};
-            impl Drop for Gus {
-                fn drop(&mut self) {
-                    debug!("drop pancking? {}", std::thread::panicking());
-                    std::thread::sleep(std::time::Duration::from_secs(10));
-                    debug!("done drop");
-                }
+        #[cfg(feature = "test_drop")]
+        struct Gus {}
+        #[cfg(feature = "test_drop")]
+        impl Drop for Gus {
+            fn drop(&mut self) {
+                debug!("drop pancking? {}", std::thread::panicking());
+                std::thread::sleep(std::time::Duration::from_secs(10));
+                debug!("done drop");
             }
         }
 
-        #[cfg(feature = "server")]
+        #[cfg(feature = "test_drop")]
         let g = Gus {};
-        #[cfg(feature = "server")]
+        #[cfg(feature = "test_drop")]
         trace!("before panicking? {}", std::thread::panicking());
         self.poll_catch(cx, true)
     }
