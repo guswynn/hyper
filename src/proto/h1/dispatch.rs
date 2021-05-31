@@ -5,12 +5,12 @@ use http::Request;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use super::{Http1Transaction, Wants};
-use crate::body::{Body, DecodedLength, HttpBody};
-use crate::common::{task, Future, Pin, Poll, Unpin};
-use crate::proto::{
-    BodyLength, Conn, Dispatched, MessageHead, RequestHead,
+use crate::{
+    body::{Body, DecodedLength, HttpBody},
+    common::{task, Future, Pin, Poll, Unpin},
+    proto::{BodyLength, Conn, Dispatched, MessageHead, RequestHead},
+    upgrade::OnUpgrade,
 };
-use crate::upgrade::OnUpgrade;
 
 pub(crate) struct Dispatcher<D, Bs: HttpBody, I, T> {
     conn: Conn<I, Bs::Data, T>,
@@ -56,10 +56,10 @@ cfg_client! {
 impl<D, Bs, I, T> Dispatcher<D, Bs, I, T>
 where
     D: Dispatch<
-        PollItem = MessageHead<T::Outgoing>,
-        PollBody = Bs,
-        RecvItem = MessageHead<T::Incoming>,
-    > + Unpin,
+            PollItem = MessageHead<T::Outgoing>,
+            PollBody = Bs,
+            RecvItem = MessageHead<T::Incoming>,
+        > + Unpin,
     D::PollError: Into<Box<dyn StdError + Send + Sync>>,
     I: AsyncRead + AsyncWrite + Unpin,
     T: Http1Transaction + Unpin,
@@ -254,7 +254,10 @@ where
                 if wants.contains(Wants::UPGRADE) {
                     let upgrade = self.conn.on_upgrade();
                     debug_assert!(!upgrade.is_none(), "empty upgrade");
-                    debug_assert!(head.extensions.get::<OnUpgrade>().is_none(), "OnUpgrade already set");
+                    debug_assert!(
+                        head.extensions.get::<OnUpgrade>().is_none(),
+                        "OnUpgrade already set"
+                    );
                     head.extensions.insert(upgrade);
                 }
                 self.dispatch.recv_msg(Ok((head, body)))?;
@@ -403,10 +406,10 @@ where
 impl<D, Bs, I, T> Future for Dispatcher<D, Bs, I, T>
 where
     D: Dispatch<
-        PollItem = MessageHead<T::Outgoing>,
-        PollBody = Bs,
-        RecvItem = MessageHead<T::Incoming>,
-    > + Unpin,
+            PollItem = MessageHead<T::Outgoing>,
+            PollBody = Bs,
+            RecvItem = MessageHead<T::Incoming>,
+        > + Unpin,
     D::PollError: Into<Box<dyn StdError + Send + Sync>>,
     I: AsyncRead + AsyncWrite + Unpin,
     T: Http1Transaction + Unpin,
@@ -417,6 +420,17 @@ where
 
     #[inline]
     fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+        struct Gus {};
+        impl Drop for Gus {
+            fn drop(&mut self) {
+                debug!("drop pancking? {}", std::thread::panicking());
+                std::thread::sleep(std::time::Duration::from_secs(10));
+                debug!("done drop");
+            }
+        }
+
+        let g = Gus {};
+        trace!("before panicking? {}", std::thread::panicking());
         self.poll_catch(cx, true)
     }
 }
